@@ -1,0 +1,101 @@
+name: Build Ponto Study (APK + Windows)
+
+# ============================================================
+# ARQUIVO: .github/workflows/build.yml
+# FUNÇÃO: Compila o app automaticamente nos servidores do GitHub
+#         (que já têm Flutter, Android SDK e Visual Studio C++
+#         instalados) toda vez que você enviar código para o
+#         branch "main", ou quando você disparar manualmente pela
+#         aba "Actions" do repositório.
+#
+# ONDE BAIXAR O RESULTADO:
+#   GitHub -> aba "Actions" -> clique na execução mais recente ->
+#   role até "Artifacts" -> baixe "ponto-study-android" (.apk) e/ou
+#   "ponto-study-windows" (pasta com o .exe e as DLLs).
+#
+# POSSO ALTERAR:
+#   - "on:" para mudar quando o build roda (ex: só em tags).
+#   - As versões do Flutter/Java se precisar de outra versão.
+#
+# NÃO DEVO ALTERAR SEM ENTENDER:
+#   - A ordem dos passos (setup -> pub get -> build_runner -> build).
+#     Pular o build_runner faz o build falhar, porque o banco de
+#     dados (Drift) depende de código gerado automaticamente.
+# ============================================================
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {} # permite rodar manualmente pelo botão "Run workflow"
+
+jobs:
+  build-android:
+    name: Gerar APK (Android)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar o Java (necessário para compilar Android)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Instalar o Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Gerar a pasta android/ (ainda não existe no repositório)
+        run: flutter create --platforms=android .
+
+      - name: Instalar as dependências do projeto (flutter pub get)
+        run: flutter pub get
+
+      - name: Gerar o código do banco de dados (Drift)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Compilar o APK
+        run: flutter build apk --release
+
+      - name: Disponibilizar o APK para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: ponto-study-android
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  build-windows:
+    name: Gerar executável (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar o Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Habilitar suporte a Windows Desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Gerar a pasta windows/ (ainda não existe no repositório)
+        run: flutter create --platforms=windows .
+
+      - name: Instalar as dependências do projeto (flutter pub get)
+        run: flutter pub get
+
+      - name: Gerar o código do banco de dados (Drift)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Compilar o aplicativo Windows
+        run: flutter build windows --release
+
+      - name: Disponibilizar o executável (pasta inteira) para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: ponto-study-windows
+          path: build/windows/x64/runner/Release/
+          if-no-files-found: error

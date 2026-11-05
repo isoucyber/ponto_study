@@ -1,0 +1,29 @@
+# Arquivos gerados pelo Flutter/Dart — não devem ir para o Git,
+# pois são recriados automaticamente por "flutter pub get" e pelo
+# "build_runner". Se você apagá-los sem querer, não tem problema:
+# basta rodar os comandos do README para recriá-los.
+
+.dart_tool/
+.flutter-plugin-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Gerado automaticamente pelo Drift (dart run build_runner build)
+**/*.g.dart
+
+# Arquivos específicos de plataforma criados por "flutter create"
+# (ainda não existem neste repositório — serão criados quando você
+# rodar "flutter create ." seguindo o README)
+.android/
+.ios/
+
+# Editor
+.vscode/
+.idea/
+*.iml
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
