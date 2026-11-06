@@ -162,31 +162,59 @@ jobs:
           if ($p.HasExited) { Write-Error "O aplicativo fechou sozinho (código $($p.ExitCode))"; exit 1 }
           Stop-Process -Id $p.Id -Force
           Write-Host "OK: o aplicativo abriu e ficou em execução por 15 segundos."
-      - name: Teste do instalador (instalação silenciosa)
+      - name: Teste do instalador e da interface (instala, digita o nome, reabre)
         shell: pwsh
-        run: |
-          $setup = Get-ChildItem "dist\Windows\PontoStudy-Setup-*.exe" | Select-Object -First 1
-          $proc = Start-Process -FilePath $setup.FullName -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/ALLUSERS" -Wait -PassThru
-          if ($proc.ExitCode -ne 0) { Write-Error "Instalador falhou ($($proc.ExitCode))"; exit 1 }
-          $exe = "C:\Program Files\Ponto Study\ponto_study.exe"
-          if (-not (Test-Path $exe)) { Write-Error "ponto_study.exe não foi instalado"; exit 1 }
-          $lnk = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Ponto Study\Ponto Study.lnk"
-          if (-not (Test-Path $lnk)) { Write-Error "Atalho do menu Iniciar não foi criado"; exit 1 }
-          $p = Start-Process -FilePath $exe -PassThru
-          Start-Sleep -Seconds 15
-          if ($p.HasExited) { Write-Error "O app instalado fechou sozinho"; exit 1 }
-          Stop-Process -Id $p.Id -Force
-          Write-Host "OK: instalado em $exe, atalho criado e app abriu."
+        run: ./tool/windows_smoke_test.ps1
+      - name: Capturas de tela do teste (Windows)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Capturas-Windows
+          path: screenshots/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: PontoStudy-Windows
           path: dist/Windows/
           if-no-files-found: error
 
+  android-test:
+    name: Android (teste no emulador)
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: PontoStudy-Android
+          path: apk
+      - name: Habilitar aceleração (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Instalar e testar no emulador
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash tool/android_smoke_test.sh apk
+      - name: Capturas de tela do teste (Android)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Capturas-Android
+          path: screenshots/
+          if-no-files-found: ignore
+
   release:
     name: Publicar Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [android, windows]
+    needs: [android, windows, android-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
