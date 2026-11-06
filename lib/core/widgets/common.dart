@@ -84,32 +84,33 @@ class SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(pontoOf(context).spec.radius);
+    final content = Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (title != null) ...[
+            Row(children: [
+              Expanded(
+                child: Text(title!,
+                    style: Theme.of(context).textTheme.titleMedium),
+              ),
+              if (trailing != null) trailing!,
+            ]),
+            const SizedBox(height: 12),
+          ],
+          child,
+        ],
+      ),
+    );
+    // Só vira "botão" quando o card inteiro é clicável. Assim leitores de
+    // tela enxergam os campos e botões internos separadamente.
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: radius,
-        child: Padding(
-          padding: padding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (title != null) ...[
-                Row(children: [
-                  Expanded(
-                    child: Text(title!,
-                        style: Theme.of(context).textTheme.titleMedium),
-                  ),
-                  if (trailing != null) trailing!,
-                ]),
-                const SizedBox(height: 12),
-              ],
-              child,
-            ],
-          ),
-        ),
-      ),
+      child: onTap == null
+          ? content
+          : InkWell(onTap: onTap, borderRadius: radius, child: content),
     );
   }
 }

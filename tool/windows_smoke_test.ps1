@@ -68,6 +68,16 @@ function Click-Text($proc, $text) {
     $root = [System.Windows.Automation.AutomationElement]::FromHandle($h)
     $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
       [System.Windows.Automation.Condition]::TrueCondition)
+    # O conteúdo do Flutter fica numa janela interna (FLUTTERVIEW): consulta ela diretamente.
+    foreach ($pane in @($all)) {
+      $child = $pane.Current.NativeWindowHandle
+      if ($child -ne 0 -and $child -ne $h.ToInt32()) {
+        $inner = [System.Windows.Automation.AutomationElement]::FromHandle([IntPtr]$child)
+        $more = $inner.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+          [System.Windows.Automation.Condition]::TrueCondition)
+        if ($more.Count -gt $all.Count) { $all = $more }
+      }
+    }
     $best = $null
     foreach ($el in $all) {
       $name = $el.Current.Name
@@ -125,7 +135,8 @@ if (-not (Click-Text $p "Seu nome")) {
   $rect = New-Object Mouse+RECT
   [Mouse]::GetWindowRect((Get-AppWindow $p), [ref]$rect) | Out-Null
   Write-Host "Janela: $($rect.L),$($rect.T) - $($rect.R),$($rect.B)"
-  [Mouse]::Click([int](($rect.L + $rect.R) / 2), [int]($rect.T + ($rect.B - $rect.T) * 0.70))
+  # Na tela de 1024x768 do GitHub, o campo fica em torno de (531, 509).
+  [Mouse]::Click(531, 509)
   Start-Sleep -Milliseconds 700
 }
 Type-Text "Arthur"
