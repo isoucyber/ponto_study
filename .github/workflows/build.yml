@@ -76,6 +76,33 @@ jobs:
           mkdir -p dist/Android
           cp build/app/outputs/flutter-apk/app-release.apk "dist/Android/PontoStudy-${APP_VERSION}.apk"
           ls -la dist/Android
+      - name: Assinar APK com a chave fixa (se configurada nos Secrets)
+        # Com a chave fixa, o Android aceita atualizar o app sem desinstalar.
+        # Como configurar: docs/ASSINATURA_ANDROID.md
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          APK="dist/Android/PontoStudy-${APP_VERSION}.apk"
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            "$BT/apksigner" sign --ks "$RUNNER_TEMP/upload.jks" --ks-pass env:KS_PASS \
+              --key-pass env:KEY_PASS --ks-key-alias "$KEY_ALIAS" "$APK"
+            rm -f "$RUNNER_TEMP/upload.jks"
+            echo "APK assinado com a chave fixa do Ponto Study."
+          else
+            echo "::warning::Chave fixa não configurada: APK assinado com chave temporária (veja docs/ASSINATURA_ANDROID.md)."
+          fi
+      - name: Verificar APK (assinatura, nome e pacote)
+        run: |
+          APK="dist/Android/PontoStudy-${APP_VERSION}.apk"
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" verify --print-certs "$APK" | head -3
+          "$BT/aapt2" dump badging "$APK" | grep -E "^package:|application-label:|sdkVersion|targetSdkVersion"
+          "$BT/aapt2" dump badging "$APK" | grep -q "application-label:'Ponto Study'"
       - uses: actions/upload-artifact@v4
         with:
           name: PontoStudy-Android

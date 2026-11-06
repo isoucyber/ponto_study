@@ -383,8 +383,8 @@ class _DataSection extends StatelessWidget {
             style: TextStyle(color: pal.textMuted, fontSize: 12.5),
           ),
           const Divider(height: 28),
-          Text('Ponto Study $appVersion',
-              style: const TextStyle(fontWeight: FontWeight.w600)),
+          const Text('Ponto Study $appVersion',
+              style: TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
     );

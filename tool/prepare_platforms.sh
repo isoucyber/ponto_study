@@ -17,13 +17,14 @@ set -euo pipefail
 
 PLATFORM="${1:?Informe a plataforma: android ou windows}"
 
-flutter create --platforms="$PLATFORM" --org com.pontostudy --project-name ponto_study .
+# Geramos sempre as duas pastas: com --org, o "flutter create" precisa
+# encontrar o AndroidManifest.xml mesmo quando o alvo é o Windows.
+flutter create --platforms=android,windows --org com.pontostudy --project-name ponto_study .
 
-if [ "$PLATFORM" = "android" ]; then
-  MANIFEST=android/app/src/main/AndroidManifest.xml
-  sed -i 's/android:label="ponto_study"/android:label="Ponto Study"/' "$MANIFEST"
-  grep -q 'android:label="Ponto Study"' "$MANIFEST"
-fi
+# Nome exibido no celular.
+MANIFEST=android/app/src/main/AndroidManifest.xml
+sed -i 's/android:label="ponto_study"/android:label="Ponto Study"/' "$MANIFEST"
+grep -q 'android:label="Ponto Study"' "$MANIFEST"
 
 if [ "$PLATFORM" = "windows" ]; then
   # Título e tamanho inicial da janela.

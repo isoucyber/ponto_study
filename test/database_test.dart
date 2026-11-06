@@ -287,9 +287,9 @@ void main() {
 
   test('chaves estrangeiras estão ativas', () async {
     expect(
-      () => db.into(db.contentNodes).insert(ContentNodesCompanion(
-            subjectId: const Value(999),
-            name: const Value('órfão'),
+      () => db.into(db.contentNodes).insert(const ContentNodesCompanion(
+            subjectId: Value(999),
+            name: Value('órfão'),
           )),
       throwsA(anything),
     );
