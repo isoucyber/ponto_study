@@ -19,6 +19,12 @@ alive() {
   fi
 }
 
+# Tira captura de tela e imprime também no log (base64), para conferência remota.
+shot() {
+  adb exec-out screencap -p > "screenshots/$1.png"
+  base64 -w 60000 "screenshots/$1.png" | sed "s/^/SHOT:$1:/"
+}
+
 launch() {
   adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 > /dev/null
 }
@@ -29,20 +35,20 @@ echo "OK: APK instalado."
 launch
 sleep 15
 alive "primeira abertura"
-adb exec-out screencap -p > screenshots/android-1-primeira-abertura.png
+shot android-1-primeira-abertura
 
 adb shell input text "Arthur"
 sleep 2
 adb shell input keyevent 66
 sleep 6
 alive "salvar o nome"
-adb exec-out screencap -p > screenshots/android-2-inicio.png
+shot android-2-inicio
 
 adb shell am force-stop "$PKG"
 sleep 2
 launch
 sleep 12
 alive "reabrir"
-adb exec-out screencap -p > screenshots/android-3-reaberto.png
+shot android-3-reaberto
 
 echo "OK: o app abriu, aceitou o nome e reabriu no emulador."

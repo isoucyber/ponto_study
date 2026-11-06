@@ -20,6 +20,11 @@ function Save-Screen($name) {
   $bmp.Save("screenshots\$name.png", [System.Drawing.Imaging.ImageFormat]::Png)
   $g.Dispose(); $bmp.Dispose()
   Write-Host "Captura: screenshots\$name.png"
+  # Também imprime a imagem no log (em base64), para conferência remota.
+  $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("screenshots\$name.png"))
+  for ($i = 0; $i -lt $b64.Length; $i += 60000) {
+    Write-Host ("SHOT:" + $name + ":" + $b64.Substring($i, [Math]::Min(60000, $b64.Length - $i)))
+  }
 }
 
 function Assert-Running($proc, $step) {
