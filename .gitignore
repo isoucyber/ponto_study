@@ -1,29 +1,37 @@
-# Arquivos gerados pelo Flutter/Dart — não devem ir para o Git,
-# pois são recriados automaticamente por "flutter pub get" e pelo
-# "build_runner". Se você apagá-los sem querer, não tem problema:
-# basta rodar os comandos do README para recriá-los.
-
+# ---- Gerados pelo Flutter/Dart (recriados por "flutter pub get") ----
 .dart_tool/
 .flutter-plugin-dependencies
 .packages
 .pub-cache/
 .pub/
 build/
+pubspec.lock.bak
 
-# Gerado automaticamente pelo Drift (dart run build_runner build)
+# Gerado pelo Drift (dart run build_runner build)
 **/*.g.dart
 
-# Arquivos específicos de plataforma criados por "flutter create"
-# (ainda não existem neste repositório — serão criados quando você
-# rodar "flutter create ." seguindo o README)
-.android/
-.ios/
+# Pastas de plataforma: geradas no GitHub Actions por tool/prepare_platforms.sh
+# (assim o repositório guarda só o código do app e as personalizações).
+/android/
+/windows/
+/ios/
+/linux/
+/macos/
+/web/
 
-# Editor
+# Instaladores e saídas locais (os oficiais ficam nas Releases do GitHub)
+dist/
+
+# Segredos: NUNCA enviar chaves para o GitHub
+*.jks
+*.keystore
+key.properties
+.env
+*.pem
+
+# Editor / sistema
 .vscode/
 .idea/
 *.iml
-
-# Sistema operacional
 .DS_Store
 Thumbs.db

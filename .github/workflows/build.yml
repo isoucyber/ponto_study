@@ -1,101 +1,184 @@
-name: Build Ponto Study (APK + Windows)
+name: Testes, builds e Release
 
 # ============================================================
 # ARQUIVO: .github/workflows/build.yml
-# FUNÇÃO: Compila o app automaticamente nos servidores do GitHub
-#         (que já têm Flutter, Android SDK e Visual Studio C++
-#         instalados) toda vez que você enviar código para o
-#         branch "main", ou quando você disparar manualmente pela
-#         aba "Actions" do repositório.
+# FUNÇÃO: Automação no GitHub Actions.
+#   - A cada push: roda análise + testes e compila Android e Windows.
+#     Os arquivos ficam em "Actions → execução → Artifacts".
+#   - Ao criar uma tag "v*" (ex.: v0.1.0): além disso, publica uma
+#     Release com o instalador .exe, o .apk, a versão portátil e o
+#     código-fonte em .zip.
 #
-# ONDE BAIXAR O RESULTADO:
-#   GitHub -> aba "Actions" -> clique na execução mais recente ->
-#   role até "Artifacts" -> baixe "ponto-study-android" (.apk) e/ou
-#   "ponto-study-windows" (pasta com o .exe e as DLLs).
-#
-# POSSO ALTERAR:
-#   - "on:" para mudar quando o build roda (ex: só em tags).
-#   - As versões do Flutter/Java se precisar de outra versão.
-#
-# NÃO DEVO ALTERAR SEM ENTENDER:
-#   - A ordem dos passos (setup -> pub get -> build_runner -> build).
-#     Pular o build_runner faz o build falhar, porque o banco de
-#     dados (Drift) depende de código gerado automaticamente.
+# Para publicar uma versão nova:
+#   1. Atualize "version:" no pubspec.yaml e o CHANGELOG.md
+#   2. Crie docs/releases/vX.Y.Z.md com as notas da versão
+#   3. git tag vX.Y.Z && git push origin vX.Y.Z
 # ============================================================
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch: {} # permite rodar manualmente pelo botão "Run workflow"
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: '3.47.9'
 
 jobs:
-  build-android:
-    name: Gerar APK (Android)
+  test:
+    name: Análise e testes
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar o código do repositório
-        uses: actions/checkout@v4
-
-      - name: Instalar o Java (necessário para compilar Android)
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
         with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Instalar o Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-
-      - name: Gerar a pasta android/ (ainda não existe no repositório)
-        run: flutter create --platforms=android .
-
-      - name: Instalar as dependências do projeto (flutter pub get)
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: SQLite para os testes do banco
+        run: sudo apt-get update -y && sudo apt-get install -y libsqlite3-dev
+      - name: Dependências
         run: flutter pub get
-
-      - name: Gerar o código do banco de dados (Drift)
+      - name: Gerar código do banco (Drift)
         run: dart run build_runner build --delete-conflicting-outputs
+      - name: Análise estática
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Testes automatizados
+        run: flutter test --reporter expanded
 
-      - name: Compilar o APK
-        run: flutter build apk --release
-
-      - name: Disponibilizar o APK para download
-        uses: actions/upload-artifact@v4
+  android:
+    name: Android (.apk)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
-          name: ponto-study-android
-          path: build/app/outputs/flutter-apk/app-release.apk
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Versão do app
+        run: echo "APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')" >> "$GITHUB_ENV"
+      - name: Preparar plataforma Android
+        run: bash tool/prepare_platforms.sh android
+      - name: Compilar APK
+        run: flutter build apk --release
+      - name: Organizar arquivo
+        run: |
+          mkdir -p dist/Android
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/Android/PontoStudy-${APP_VERSION}.apk"
+          ls -la dist/Android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PontoStudy-Android
+          path: dist/Android/
           if-no-files-found: error
 
-  build-windows:
-    name: Gerar executável (Windows)
+  windows:
+    name: Windows (instalador .exe)
+    needs: test
     runs-on: windows-latest
     steps:
-      - name: Baixar o código do repositório
-        uses: actions/checkout@v4
-
-      - name: Instalar o Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
-
-      - name: Habilitar suporte a Windows Desktop
-        run: flutter config --enable-windows-desktop
-
-      - name: Gerar a pasta windows/ (ainda não existe no repositório)
-        run: flutter create --platforms=windows .
-
-      - name: Instalar as dependências do projeto (flutter pub get)
-        run: flutter pub get
-
-      - name: Gerar o código do banco de dados (Drift)
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      - name: Compilar o aplicativo Windows
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Versão do app
+        shell: bash
+        run: echo "APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//' | tr -d '\r')" >> "$GITHUB_ENV"
+      - name: Preparar plataforma Windows
+        shell: bash
+        run: bash tool/prepare_platforms.sh windows
+      - name: Compilar aplicativo Windows
         run: flutter build windows --release
-
-      - name: Disponibilizar o executável (pasta inteira) para download
-        uses: actions/upload-artifact@v4
+      - name: Incluir bibliotecas do Visual C++ (para rodar em qualquer PC)
+        shell: pwsh
+        run: |
+          $dest = "build\windows\x64\runner\Release"
+          foreach ($dll in @("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")) {
+            Copy-Item "C:\Windows\System32\$dll" $dest -Force
+          }
+          Get-ChildItem $dest
+      - name: Instalar Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+      - name: Gerar instalador
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:APP_VERSION" "installer\ponto_study.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Gerar versão portátil (.zip)
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "dist\Windows\PontoStudy-$env:APP_VERSION-Windows-portatil.zip" -Force
+          Get-ChildItem dist\Windows
+      - name: Teste de fumaça (o .exe abre e continua rodando)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath "build\windows\x64\runner\Release\ponto_study.exe" -PassThru
+          Start-Sleep -Seconds 15
+          if ($p.HasExited) { Write-Error "O aplicativo fechou sozinho (código $($p.ExitCode))"; exit 1 }
+          Stop-Process -Id $p.Id -Force
+          Write-Host "OK: o aplicativo abriu e ficou em execução por 15 segundos."
+      - name: Teste do instalador (instalação silenciosa)
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem "dist\Windows\PontoStudy-Setup-*.exe" | Select-Object -First 1
+          $proc = Start-Process -FilePath $setup.FullName -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/ALLUSERS" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { Write-Error "Instalador falhou ($($proc.ExitCode))"; exit 1 }
+          $exe = "C:\Program Files\Ponto Study\ponto_study.exe"
+          if (-not (Test-Path $exe)) { Write-Error "ponto_study.exe não foi instalado"; exit 1 }
+          $lnk = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Ponto Study\Ponto Study.lnk"
+          if (-not (Test-Path $lnk)) { Write-Error "Atalho do menu Iniciar não foi criado"; exit 1 }
+          $p = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 15
+          if ($p.HasExited) { Write-Error "O app instalado fechou sozinho"; exit 1 }
+          Stop-Process -Id $p.Id -Force
+          Write-Host "OK: instalado em $exe, atalho criado e app abriu."
+      - uses: actions/upload-artifact@v4
         with:
-          name: ponto-study-windows
-          path: build/windows/x64/runner/Release/
+          name: PontoStudy-Windows
+          path: dist/Windows/
           if-no-files-found: error
+
+  release:
+    name: Publicar Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Código-fonte completo (.zip)
+        run: |
+          git archive --format=zip --prefix=ponto_study/ -o "dist/PontoStudy-${GITHUB_REF_NAME}-codigo-fonte.zip" HEAD
+          find dist -type f -exec ls -la {} \;
+      - name: Notas da versão
+        run: |
+          if [ -f "docs/releases/${GITHUB_REF_NAME}.md" ]; then
+            cp "docs/releases/${GITHUB_REF_NAME}.md" release_notes.md
+          else
+            echo "Versão ${GITHUB_REF_NAME} do Ponto Study." > release_notes.md
+          fi
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Ponto Study ${{ github.ref_name }}
+          body_path: release_notes.md
+          files: |
+            dist/PontoStudy-Windows/*
+            dist/PontoStudy-Android/*
+            dist/*.zip

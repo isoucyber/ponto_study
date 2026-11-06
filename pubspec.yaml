@@ -1,7 +1,10 @@
 name: ponto_study
-description: "Ponto Study - aplicativo local de controle e planejamento de estudos"
+description: "Ponto Study - plataforma local de estudos, aprendizagem e domínio de conhecimento"
 publish_to: 'none'
-version: 0.1.0
+
+# Versão do app. O número depois do "+" é o "código de versão" do Android
+# (precisa aumentar a cada versão publicada).
+version: 0.1.0+1
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -10,37 +13,39 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Traduções do Flutter (calendário, botões "Cancelar"/"OK" etc.) em português.
+  flutter_localizations:
+    sdk: flutter
 
-  # Banco de dados local (SQLite) com suporte a Android, Windows e Web.
-  # Escolhido no lugar do sqflite "puro" porque o Drift usa a MESMA API
-  # para as três plataformas, é fortemente tipado e atualiza a UI
-  # automaticamente quando os dados mudam (streams reativas).
+  # Banco de dados SQLite local, tipado, com migrações.
   drift: ^2.16.0
-
-  # Implementação nativa do SQLite para Android/Windows/Linux/macOS.
+  # SQLite nativo empacotado para Android e Windows.
   sqlite3_flutter_libs: ^0.5.24
-
-  # Encontrar a pasta correta do dispositivo para salvar o arquivo .sqlite
+  # Encontra a pasta correta do sistema para salvar o banco.
   path_provider: ^2.1.3
   path: ^1.9.0
-
-  # Ícones bonitos e consistentes (usados nas matérias e na navegação)
-  cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  # Gera o código repetitivo do Drift (database.g.dart) a partir das
-  # tabelas que escrevemos em database/tables.dart
+  # Gera o código do banco (database.g.dart) a partir das tabelas.
   drift_dev: ^2.16.0
   build_runner: ^2.4.9
-
-  # Usado SÓ pelos testes (test/), para abrir um banco SQLite em
-  # memória (sem precisar do Android/Windows real rodando).
-  sqlite3: ^2.4.0
-
+  # Gera os ícones do app para Android e Windows a partir de assets/icon/.
+  flutter_launcher_icons: ^0.14.1
   flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
+
+# Configuração do gerador de ícones (executado no GitHub Actions).
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#0F1A14"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  min_sdk_android: 21
+  windows:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    icon_size: 256
