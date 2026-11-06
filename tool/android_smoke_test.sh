@@ -47,12 +47,17 @@ try:
     nodes = list(ET.parse('/tmp/ui.xml').iter('node'))
 except Exception:
     nodes = []
+best = None
 for n in nodes:
     label = (n.get('text') or '') + ' ' + (n.get('content-desc') or '')
     if want in label:
         x1, y1, x2, y2 = map(int, re.findall(r'\d+', n.get('bounds')))
-        print((x1 + x2) // 2, (y1 + y2) // 2)
-        break
+        area = (x2 - x1) * (y2 - y1)
+        # Escolhe o MENOR elemento que contém o texto (o botão, não o card).
+        if area > 0 and (best is None or area < best[0]):
+            best = (area, (x1 + x2) // 2, (y1 + y2) // 2)
+if best:
+    print(best[1], best[2])
 PY
 )
     if [ -n "$xy" ]; then

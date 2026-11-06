@@ -19,6 +19,11 @@ public static class Mouse {
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] public static extern void mouse_event(int f, int x, int y, int d, int e);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr FindWindow(string c, string t);
+  [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, int f, int e);
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  public static void Focus(IntPtr h) { keybd_event(0x12,0,0,0); SetForegroundWindow(h); keybd_event(0x12,0,2,0); }
   public static void Click(int x, int y) { SetCursorPos(x, y); mouse_event(2,0,0,0,0); mouse_event(4,0,0,0,0); }
 }
 "@
@@ -45,25 +50,43 @@ function Assert-Running($proc, $step) {
   if ($proc.HasExited) { throw "O app fechou sozinho durante: $step (código $($proc.ExitCode))" }
 }
 
-# Procura na janela do app um elemento cujo nome contém $text e clica nele.
-function Click-Text($proc, $text) {
+# Janela do app (procura pelo título "Ponto Study").
+function Get-AppWindow($proc) {
   $proc.Refresh()
-  [Mouse]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
-  $root = [System.Windows.Automation.AutomationElement]::FromHandle($proc.MainWindowHandle)
+  $h = [Mouse]::FindWindow($null, "Ponto Study")
+  if ($h -eq [IntPtr]::Zero) { $h = $proc.MainWindowHandle }
+  return $h
+}
+
+$script:dumped = $false
+# Procura na janela do app o MENOR elemento cujo nome contém $text e clica nele.
+function Click-Text($proc, $text) {
+  $h = Get-AppWindow $proc
+  [Mouse]::Focus($h)
   for ($try = 0; $try -lt 10; $try++) {
+    $root = [System.Windows.Automation.AutomationElement]::FromHandle($h)
     $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
       [System.Windows.Automation.Condition]::TrueCondition)
+    $best = $null
     foreach ($el in $all) {
       $name = $el.Current.Name
       if ($name -and $name.Contains($text)) {
         $r = $el.Current.BoundingRectangle
-        if ($r.Width -gt 0 -and $r.Height -gt 0) {
-          [Mouse]::Click([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2))
-          Start-Sleep -Milliseconds 700
-          Write-Host "Clique em '$text'"
-          return $true
+        if ($r.Width -gt 0 -and $r.Height -gt 0 -and ($best -eq $null -or ($r.Width * $r.Height) -lt ($best.Width * $best.Height))) {
+          $best = $r
         }
       }
+    }
+    if ($best -ne $null) {
+      [Mouse]::Click([int]($best.X + $best.Width / 2), [int]($best.Y + $best.Height / 2))
+      Start-Sleep -Milliseconds 700
+      Write-Host "Clique em '$text'"
+      return $true
+    }
+    if (-not $script:dumped -and $try -eq 3) {
+      $script:dumped = $true
+      Write-Host "Diagnóstico UIA: janela $h, $($all.Count) elementos. Nomes:"
+      $all | Select-Object -First 40 | ForEach-Object { Write-Host ("   [" + $_.Current.ControlType.ProgrammaticName + "] " + $_.Current.Name) }
     }
     Start-Sleep -Milliseconds 700
   }
@@ -94,9 +117,10 @@ Assert-Running $p "primeira abertura"
 Save-Screen "windows-1-primeira-abertura"
 if (-not (Click-Text $p "Seu nome")) {
   # Plano B: clicar onde o campo fica na janela (centro, ~70% da altura).
-  $root = [System.Windows.Automation.AutomationElement]::FromHandle($p.MainWindowHandle)
-  $w = $root.Current.BoundingRectangle
-  [Mouse]::Click([int]($w.X + $w.Width / 2), [int]($w.Y + $w.Height * 0.70))
+  $rect = New-Object Mouse+RECT
+  [Mouse]::GetWindowRect((Get-AppWindow $p), [ref]$rect) | Out-Null
+  Write-Host "Janela: $($rect.L),$($rect.T) - $($rect.R),$($rect.B)"
+  [Mouse]::Click([int](($rect.L + $rect.R) / 2), [int]($rect.T + ($rect.B - $rect.T) * 0.70))
   Start-Sleep -Milliseconds 700
 }
 Type-Text "Arthur"
