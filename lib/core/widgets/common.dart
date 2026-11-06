@@ -108,6 +108,7 @@ class SectionCard extends StatelessWidget {
     // tela enxergam os campos e botões internos separadamente.
     return Card(
       clipBehavior: Clip.antiAlias,
+      semanticContainer: onTap != null,
       child: onTap == null
           ? content
           : InkWell(onTap: onTap, borderRadius: radius, child: content),
