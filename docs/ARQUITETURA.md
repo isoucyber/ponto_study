@@ -138,4 +138,4 @@ Salvamos só o que **aconteceu**: sessões, pausas, matérias, planejamentos, co
 | `test/timer_math_test.dart` | Cálculo de tempo com pausas, pausa em andamento, relógio ajustado para trás. |
 | `test/study_stats_test.dart` | Semana, períodos, por matéria, sequência de dias, metas, média. |
 | `test/database_test.dart` | Perfil, configurações, matérias, hierarquia, reordenar, mover sem ciclos, excluir, cronômetro completo, recuperação de sessão, registro manual, planejamento e chaves estrangeiras. |
-| `test/app_flow_test.dart` | Abre o app, informa o nome e confirma que o Início aparece. |
+| Teste de fumaça no GitHub (Windows) | Abre o `.exe` compilado e o app instalado e confirma que continuam rodando. |
