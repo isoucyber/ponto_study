@@ -103,6 +103,15 @@ shot android-3-materias
 
 if tap_text "Estudar"; then
   sleep 2
+  # Diagnóstico: elementos visíveis na tela do cronômetro.
+  adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 || true
+  adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1 || true
+  python3 -c "
+import xml.etree.ElementTree as ET
+for n in ET.parse('/tmp/ui.xml').iter('node'):
+    t=(n.get('text') or '')+'|'+(n.get('content-desc') or '')
+    if t!='|': print('UI:', n.get('class'), n.get('clickable'), n.get('bounds'), repr(t[:80]))
+" || true
   if tap_text "Escolha a matéria"; then tap_text "Java" || true; fi
   if tap_text "Iniciar cronômetro"; then
     sleep 6

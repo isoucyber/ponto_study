@@ -23,6 +23,7 @@ public static class Mouse {
   [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, int f, int e);
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] public static extern bool SystemParametersInfo(int a, int b, IntPtr c, int d);
   public static void Focus(IntPtr h) { keybd_event(0x12,0,0,0); SetForegroundWindow(h); keybd_event(0x12,0,2,0); }
   public static void Click(int x, int y) { SetCursorPos(x, y); mouse_event(2,0,0,0,0); mouse_event(4,0,0,0,0); }
 }
@@ -109,6 +110,10 @@ if (-not (Test-Path $exe)) { throw "ponto_study.exe não foi instalado" }
 $lnk = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Ponto Study\Ponto Study.lnk"
 if (-not (Test-Path $lnk)) { throw "Atalho do menu Iniciar não foi criado" }
 Write-Host "OK: instalado em $exe e atalho do menu Iniciar criado."
+
+# O Flutter só publica a árvore de acessibilidade (nomes de botões e campos)
+# quando o Windows informa que há um leitor de tela ativo.
+[Mouse]::SystemParametersInfo(0x0047, 1, [IntPtr]::Zero, 0x2) | Out-Null  # SPI_SETSCREENREADER
 
 # 2. Primeira abertura: digitar o nome
 $p = Start-Process -FilePath $exe -PassThru
