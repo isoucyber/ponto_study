@@ -65,7 +65,8 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - name: Versão do app
-        run: echo "APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')" >> "$GITHUB_ENV"
+        run: |
+          echo "APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')" >> "$GITHUB_ENV"
       - name: Preparar plataforma Android
         run: bash tool/prepare_platforms.sh android
       - name: Compilar APK
@@ -94,7 +95,8 @@ jobs:
           cache: true
       - name: Versão do app
         shell: bash
-        run: echo "APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//' | tr -d '\r')" >> "$GITHUB_ENV"
+        run: |
+          echo "APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//' | tr -d '\r')" >> "$GITHUB_ENV"
       - name: Preparar plataforma Windows
         shell: bash
         run: bash tool/prepare_platforms.sh windows
