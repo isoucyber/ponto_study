@@ -5,14 +5,14 @@ name: Testes, builds e Release
 # FUNÇÃO: Automação no GitHub Actions.
 #   - A cada push: roda análise + testes e compila Android e Windows.
 #     Os arquivos ficam em "Actions → execução → Artifacts".
-#   - Ao criar uma tag "v*" (ex.: v0.1.0): além disso, publica uma
-#     Release com o instalador .exe, o .apk, a versão portátil e o
-#     código-fonte em .zip.
+#   - No branch main: se a versão do pubspec.yaml ainda não foi
+#     publicada, cria a tag vX.Y.Z e a Release com o instalador .exe,
+#     o .apk, a versão portátil e o código-fonte em .zip.
 #
 # Para publicar uma versão nova:
 #   1. Atualize "version:" no pubspec.yaml e o CHANGELOG.md
 #   2. Crie docs/releases/vX.Y.Z.md com as notas da versão
-#   3. git tag vX.Y.Z && git push origin vX.Y.Z
+#   3. Envie para o main (git push). O resto é automático.
 # ============================================================
 
 on:
@@ -213,29 +213,49 @@ jobs:
 
   release:
     name: Publicar Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Publica automaticamente quando o código chega ao branch main com uma
+    # versão (pubspec.yaml) que ainda não tem Release. Cria a tag vX.Y.Z.
+    if: github.ref == 'refs/heads/main'
     needs: [android, windows, android-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Versão e verificação da tag
+        id: ver
+        run: |
+          V=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')
+          echo "tag=v$V" >> "$GITHUB_OUTPUT"
+          if git ls-remote --tags origin "refs/tags/v$V" | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "A versão v$V já foi publicada: nada a fazer."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/download-artifact@v4
+        if: steps.ver.outputs.exists == 'false'
         with:
           path: dist
-      - name: Código-fonte completo (.zip)
+          pattern: PontoStudy-*
+      - name: Código-fonte completo (.zip) e notas da versão
+        if: steps.ver.outputs.exists == 'false'
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
         run: |
-          git archive --format=zip --prefix=ponto_study/ -o "dist/PontoStudy-${GITHUB_REF_NAME}-codigo-fonte.zip" HEAD
+          git archive --format=zip --prefix=ponto_study/ -o "dist/PontoStudy-${TAG}-codigo-fonte.zip" HEAD
           find dist -type f -exec ls -la {} \;
-      - name: Notas da versão
-        run: |
-          if [ -f "docs/releases/${GITHUB_REF_NAME}.md" ]; then
-            cp "docs/releases/${GITHUB_REF_NAME}.md" release_notes.md
+          if [ -f "docs/releases/${TAG}.md" ]; then
+            cp "docs/releases/${TAG}.md" release_notes.md
           else
-            echo "Versão ${GITHUB_REF_NAME} do Ponto Study." > release_notes.md
+            echo "Versão ${TAG} do Ponto Study." > release_notes.md
           fi
       - uses: softprops/action-gh-release@v2
+        if: steps.ver.outputs.exists == 'false'
         with:
-          name: Ponto Study ${{ github.ref_name }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Ponto Study ${{ steps.ver.outputs.tag }}
           body_path: release_notes.md
+          make_latest: true
           files: |
             dist/PontoStudy-Windows/*
             dist/PontoStudy-Android/*

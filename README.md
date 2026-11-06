@@ -95,9 +95,9 @@ No Windows, rode o primeiro comando no **Git Bash**.
 
 1. Atualize `version:` em `pubspec.yaml`, `appVersion` em `lib/features/settings/settings_screen.dart` e o `CHANGELOG.md`.
 2. Crie `docs/releases/vX.Y.Z.md` com as notas da versão.
-3. `git tag vX.Y.Z && git push origin vX.Y.Z`
+3. Envie para o branch `main`.
 
-O GitHub Actions roda os testes, compila Android e Windows, testa a instalação no Windows e publica a Release com todos os arquivos.
+O GitHub Actions roda os testes, compila Android e Windows, testa a instalação e o uso no Windows e num emulador Android e, se tudo passar, cria a tag `vX.Y.Z` e publica a Release com todos os arquivos.
 
 ### Segurança
 
